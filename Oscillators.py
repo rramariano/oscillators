@@ -5,33 +5,28 @@ import numpy as np
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 
-class Pendulum:
+class Oscillator:
 
     #constant
     g = 9.8
 
-    def __init__(self,dt=0.04,l=1,x=0.1,v=0.1,theta=0.2,omega=0):
+    def __init__(self,dt=0.01,x=0.1,v=0.1):
         self.time = np.arange(0,60,dt)
-        self.length = l
         self.initX = x
         self.initV = v
-        self.initTheta = theta
-        self.initOmega = omega
+        self.initConditions = (self.initX,self.initV)
 
     #methods
-    #different kinds of pendulum/oscillatory motion
-    def simpleHarmonic(self,y,t):
+    #different kinds of oscillatory motion
+    def simpleHarmonic(self,y,t,omega0=2):
         """
-        Small angle approximation
-        F = -(g*theta)/l
-        theta(t0)=0.2
-        omega(t0)=0
+        d2x/dt2 + omega^2 * x = 0
         """
-        theta, omega = y
-        dydt = [omega, -Pendulum.g*theta/self.length]
+        x, v = y
+        dydt = [v, -omega0**2 * x]
         return dydt
 
-    def anharmonic(self,y,t,k,alpha):
+    def anharmonic(self,y,t,k=1.1,alpha=1.1):
         """
         F = -k*(x**alpha)
         """
@@ -39,44 +34,66 @@ class Pendulum:
         dydt = [v,-k*(x**alpha)]
         return dydt
 
-    def damped(self,y,t,q=1/2):
+    def damped(self,y,t,omega0=2,beta=1.5):
         """
-        F = -(g*theta)/ - q*omega
+        d2x/dt2 + 2(beta)dx/dt + omega^2 * x = 0
         """
-        theta, omega = y
-        dydt = [omega, self.simpleHarmonic(y,t)[1] - q*omega]
+        x, v = y
+        dydt = [v, self.simpleHarmonic(y,t)[1] - 2*beta*v]
         return dydt
 
-    def dampedDriven(self,y,t,fd=1.2,od=2/3):
+    def dampedDriven(self,y,t,omega0=2,beta=1.5,A=1.1,omega=1.7):
         """
-        F = -(g*theta)/l - q*omega + fd*sin(od*t)
+        d2x/dt2 + 2(beta)dx/dt + omega^2 * x = Acos(omega*t)
         """
-        theta,omega = y
-        dydt = [omega, self.damped(y,t)[1] + fd*np.sin(od*t)]
+        x,v = y
+        dydt = [v, self.damped(y,t,omega0,beta)[1]+A*np.cos(omega*t)]
         return dydt
 
-    def chaoticNonLinear(self,y,t):
-        """
-        F = -(g*sin(theta))/l - q*omega + fd*sin(od*t)
-        """
-        theta, omega = y
-        theta = np.sin(y[0])
-        z=(theta,omega)
-        dydt = [omega, self.dampedDriven(z,t)[1]]
-        return dydt
-
-    def duffing(self,y,t,delta=0.3,alpha=-1,beta=1,gamma=0.5,omega=1.2):
+    def duffing(self,y,t,delta=0.02,alpha=1,beta=5,gamma=8,omega=0.5):
         """
         https://en.wikipedia.org/wiki/Duffing_equation
         """
         x, v = y
-        dydt = [v, gamma*np.cos(omega*t) - delta*v - alpha*x - beta**3]
+        dydt = [v, gamma*np.cos(omega*t) - delta*v - alpha*x - beta*x**3]
         return dydt
 
-    def rayleighLorentz(self,y,t,omega=1.2):
+    def rayleighLorentz(self,y,t):
         """
-        https://en.wikipedia.org/wiki/Rayleigh%E2%80%93Lorentz_pendulum
+        https://en.wikipedia.org/wiki/Rayleigh%E2%80%93Lorentz_Oscillator
         """
+        omega = np.exp(-0.1*t)*np.cos(t)
         x, v = y
         dydt = [v, (omega**2)*x]
         return dydt
+
+    def vanDerPol(self,y,t,mu=1.5):
+        """
+        https://en.wikipedia.org/wiki/Van_der_Pol_oscillator
+        """
+        x,v = y
+        dydt = [v, mu*(1-x**2)*v-x]
+        return dydt
+
+    def move(self,function):
+        return odeint(function, self.initConditions, self.time)
+
+    def plotPosition(self,function):
+        pos = self.move(function)[:,0]
+        plt.plot(self.time,pos)
+        plt.show()
+        return None
+
+    def plotVelocity(self,function):
+        velocity = self.move(function)[:,1]
+        plt.plot(self.time,velocity)
+        plt.show()
+        return None
+    
+    def phase(self,function):
+        pos = self.move(function)[:,0]
+        velocity = self.move(function)[:,1]
+        plt.plot(pos,velocity)
+        plt.show()
+        return None
+
